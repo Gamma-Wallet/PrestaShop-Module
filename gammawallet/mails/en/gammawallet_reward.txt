@@ -1,0 +1,8 @@
+Hello {firstname} {lastname},
+
+Thank you, we have received your payment. Your order {order_name} earned a reward.
+
+Open the Gamma Wallet app and scan the QR code in this email, or open this link on your phone:
+{gamma_link}
+
+The reward is then added to your wallet.
