@@ -171,7 +171,7 @@ class GammaWalletSettings
         return $e->getMessage();
     }
 
-    /** "GWINT_HejHaaj…HNf0": enough to recognise a token, never enough to use it. */
+    /** "GWINT_Ab12Cd3…x9Yz": enough to recognise a token, never enough to use it. */
     public static function masked($token)
     {
         return Tools::strlen($token) > 17 ? Tools::substr($token, 0, 13) . '…' . Tools::substr($token, -4) : '…';
