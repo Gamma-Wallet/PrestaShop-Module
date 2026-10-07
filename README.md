@@ -32,7 +32,7 @@ This guide is for shop owners. No coding is needed. If you want to connect your 
 | | |
 |---|---|
 | A Gamma Business account with a **Reward** service active | [Register](https://business.gamma-wallet.com) and start on the free tier, then activate a Reward service. The module works only with a Reward service: while another kind of service is active (a membership or a discount card, for example), customers get no reward QR code and store credits are not offered at checkout. |
-| PrestaShop | Version 8 (8.0 to 8.2). Tested with PrestaShop 8.2 and its standard *Classic* theme. PrestaShop 9 is not tested yet. |
+| PrestaShop | Version 8 or 9. Tested with PrestaShop 8.2 (*Classic* theme) and PrestaShop 9.2 (*Hummingbird* theme). |
 | PHP | Version 7.2 or newer, as PrestaShop 8 itself requires. Your hosting provider can tell you which version you have. |
 | The same currency | Your shop must sell in the same currency as your Gamma business (for example EUR in both). |
 

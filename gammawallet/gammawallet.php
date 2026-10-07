@@ -35,7 +35,7 @@ require_once __DIR__ . '/classes/GammaWalletOrder.php';
 
 class GammaWallet extends PaymentModule
 {
-    public const VERSION = '1.1.0';
+    public const VERSION = '1.1.1';
 
     /** Order-email placeholders the module adds to order_conf: the QR code (HTML part) and a link (text part). */
     public const EMAIL_PLACEHOLDER = '{gamma_wallet_reward}';
@@ -61,8 +61,8 @@ class GammaWallet extends PaymentModule
         $this->version = self::VERSION;
         $this->author = 'Gamma Wallet';
         $this->need_instance = 0;
-        // Tested on PrestaShop 8; version 9 is not tested yet.
-        $this->ps_versions_compliancy = ['min' => '8.0.0', 'max' => '8.99.99'];
+        // Tested on PrestaShop 8.2 and 9.2.
+        $this->ps_versions_compliancy = ['min' => '8.0.0', 'max' => '9.99.99'];
         $this->bootstrap = true;
         $this->currencies = true;
         $this->currencies_mode = 'checkbox';
@@ -85,7 +85,25 @@ class GammaWallet extends PaymentModule
             && Configuration::updateValue(GammaWalletSettings::REWARD_EMAIL, 1)
             && Configuration::updateValue(GammaWalletSettings::CREDITS, 1)
             && Configuration::updateValue(GammaWalletSettings::NO_REWARD_MODULES, json_encode(GammaWalletSettings::PAY_LATER_MODULES))
-            && self::recordInstall();
+            && self::recordInstall()
+            && $this->allowEverywhere();
+    }
+
+    /**
+     * Gamma works for customers in any country. PrestaShop links a new payment module only to the
+     * countries active at install time, so a shop selling to more countries later would have to tick
+     * them by hand: every country (active or not) is allowed here instead. The shop can still narrow it
+     * in Payment > Preferences.
+     */
+    public function allowEverywhere()
+    {
+        $db = Db::getInstance();
+        foreach (Shop::getShops(false, null, true) as $idShop) {
+            $db->execute('INSERT IGNORE INTO `' . _DB_PREFIX_ . 'module_country` (`id_module`, `id_shop`, `id_country`) '
+                . 'SELECT ' . (int) $this->id . ', ' . (int) $idShop . ', `id_country` FROM `' . _DB_PREFIX_ . 'country`');
+        }
+
+        return true;
     }
 
     /** The install date (orders before it earn no reward) and the cron task's secret. Also run on upgrade. */
