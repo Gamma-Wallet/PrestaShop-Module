@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Gamma Wallet for PrestaShop
  *
@@ -13,7 +14,7 @@
  * @copyright Since 2026 Gamma Wallet
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0 (AFL-3.0)
  */
-/**
+/*
  * Gamma Wallet for PrestaShop — the cron task: store-credit orders whose customer confirmed in the
  * app after leaving the page are checked with Gamma and settled. Call it every few minutes (the
  * address, with its secret, is on the module's settings page; the "Cron tasks manager" module or the

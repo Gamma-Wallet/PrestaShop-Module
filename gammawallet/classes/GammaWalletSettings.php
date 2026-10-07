@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Gamma Wallet for PrestaShop
  *
@@ -13,7 +14,7 @@
  * @copyright Since 2026 Gamma Wallet
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0 (AFL-3.0)
  */
-/**
+/*
  * Gamma Wallet for PrestaShop — what the shop owner set, and what Gamma said about the connection.
  */
 
@@ -23,25 +24,25 @@ if (!defined('_PS_VERSION_')) {
 
 class GammaWalletSettings
 {
-    const TOKEN = 'GAMMAWALLET_TOKEN';
-    const REWARDS = 'GAMMAWALLET_REWARDS';
-    const NO_REWARD_MODULES = 'GAMMAWALLET_NO_REWARD_MODULES';
-    const REWARD_EMAIL = 'GAMMAWALLET_REWARD_EMAIL';
-    const CREDITS = 'GAMMAWALLET_CREDITS';
-    const CONNECTION = 'GAMMAWALLET_CONNECTION';
-    const OS_AWAITING = 'GAMMAWALLET_OS_AWAITING';
+    public const TOKEN = 'GAMMAWALLET_TOKEN';
+    public const REWARDS = 'GAMMAWALLET_REWARDS';
+    public const NO_REWARD_MODULES = 'GAMMAWALLET_NO_REWARD_MODULES';
+    public const REWARD_EMAIL = 'GAMMAWALLET_REWARD_EMAIL';
+    public const CREDITS = 'GAMMAWALLET_CREDITS';
+    public const CONNECTION = 'GAMMAWALLET_CONNECTION';
+    public const OS_AWAITING = 'GAMMAWALLET_OS_AWAITING';
     /** When the module was installed (Unix time): orders placed before it never earn a reward. */
-    const INSTALLED_ON = 'GAMMAWALLET_INSTALLED_ON';
+    public const INSTALLED_ON = 'GAMMAWALLET_INSTALLED_ON';
     /** The secret in the address of the cron task that settles store-credit orders paid after the page closed. */
-    const CRON_TOKEN = 'GAMMAWALLET_CRON_TOKEN';
+    public const CRON_TOKEN = 'GAMMAWALLET_CRON_TOKEN';
     /** When the back office last checked the waiting store-credit orders. */
-    const RECONCILED_AT = 'GAMMAWALLET_RECONCILED_AT';
+    public const RECONCILED_AT = 'GAMMAWALLET_RECONCILED_AT';
 
     /** Paid outside the shop, after the order is placed: cash on delivery, bank transfer, cheque. */
-    const PAY_LATER_MODULES = array('ps_cashondelivery', 'ps_wirepayment', 'ps_checkpayment');
+    public const PAY_LATER_MODULES = ['ps_cashondelivery', 'ps_wirepayment', 'ps_checkpayment'];
 
     /** How long a connection check is trusted before Gamma is asked again. */
-    const STALE_SECONDS = 3600;
+    public const STALE_SECONDS = 3600;
 
     public static function token()
     {
@@ -126,7 +127,7 @@ class GammaWalletSettings
             $connection = $api->connection($timeout);
             $connection['checkedOn'] = time();
         } catch (GammaWalletApiError $e) {
-            $connection = array('error' => self::explain($e), 'checkedOn' => time());
+            $connection = ['error' => self::explain($e), 'checkedOn' => time()];
             // Gamma briefly out of reach: keep what it said last time, so the shop keeps working.
             $previous = self::connection();
             if ($e->isRetryable() && $previous && isset($previous['canClaim'])) {
@@ -206,7 +207,7 @@ class GammaWalletSettings
     /** The address of the cron task, with its secret. */
     public static function cronUrl()
     {
-        return Context::getContext()->link->getModuleLink('gammawallet', 'cron', array('token' => (string) Configuration::get(self::CRON_TOKEN)), true);
+        return Context::getContext()->link->getModuleLink('gammawallet', 'cron', ['token' => (string) Configuration::get(self::CRON_TOKEN)], true);
     }
 
     /** "GWINT_Ab12Cd3…x9Yz": enough to recognise a token, never enough to use it. */

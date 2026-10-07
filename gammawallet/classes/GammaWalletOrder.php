@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Gamma Wallet for PrestaShop
  *
@@ -13,7 +14,7 @@
  * @copyright Since 2026 Gamma Wallet
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0 (AFL-3.0)
  */
-/**
+/*
  * Gamma Wallet for PrestaShop — what Gamma said about one order, kept in its own table
  * (PREFIX_gammawallet_order, one row per order).
  */
@@ -24,12 +25,12 @@ if (!defined('_PS_VERSION_')) {
 
 class GammaWalletOrder
 {
-    const TABLE = 'gammawallet_order';
+    public const TABLE = 'gammawallet_order';
 
-    const COLUMNS = array(
+    public const COLUMNS = [
         'bill_id', 'code', 'link', 'qr_url', 'bill_status', 'claimed_on', 'error', 'attempts', 'emailed',
         'credit_request', 'credit_request_id', 'credit_expires_on', 'credit_link', 'credit_qr', 'settled_request_id',
-    );
+    ];
 
     public static function installSql()
     {
@@ -72,7 +73,7 @@ class GammaWalletOrder
     /** Sets some columns of an order's row, creating the row when needed. */
     public static function save($idOrder, array $values)
     {
-        $clean = array('id_order' => (int) $idOrder, 'date_upd' => date('Y-m-d H:i:s'));
+        $clean = ['id_order' => (int) $idOrder, 'date_upd' => date('Y-m-d H:i:s')];
         foreach ($values as $column => $value) {
             if (in_array($column, self::COLUMNS, true)) {
                 $clean[$column] = null === $value ? null : pSQL((string) $value);
@@ -145,7 +146,7 @@ class GammaWalletOrder
             . "` WHERE `settled_request_id` IS NULL AND `credit_request` IS NOT NULL AND `date_upd` > '"
             . pSQL(date('Y-m-d H:i:s', time() - (int) $hours * 3600)) . "'");
 
-        return array_map('intval', array_column(is_array($rows) ? $rows : array(), 'id_order'));
+        return array_map('intval', array_column(is_array($rows) ? $rows : [], 'id_order'));
     }
 }
 
@@ -155,7 +156,7 @@ class GammaWalletOrder
 class GammaWalletRewards
 {
     /** No more automatic attempts after this many failures; the shop can still send it by hand. */
-    const MAX_ATTEMPTS = 6;
+    public const MAX_ATTEMPTS = 6;
 
     /** The paid state an order is in, or null. */
     private static function isPaidNow(Order $order)
@@ -239,24 +240,24 @@ class GammaWalletRewards
         }
         $currency = new Currency((int) $order->id_currency);
         try {
-            $bill = $api->createBill(array(
+            $bill = $api->createBill([
                 'reference' => self::reference($order),
                 'total' => (float) Tools::ps_round((float) $order->total_paid, 2),
                 'currencyCode' => $currency->iso_code,
                 'issuedOn' => date(DATE_ATOM, strtotime($order->date_add)),
                 'platform' => 'prestashop',
                 'pluginVersion' => GammaWallet::VERSION,
-            ), $timeout);
+            ], $timeout);
         } catch (GammaWalletApiError $e) {
-            GammaWalletOrder::save($order->id, array(
+            GammaWalletOrder::save($order->id, [
                 'error' => Tools::substr(GammaWalletSettings::explain($e), 0, 250),
                 'attempts' => (int) $row['attempts'] + 1,
-            ));
+            ]);
             GammaWalletApi::log(sprintf('Bill for order %s failed: %s', $order->reference, $e->getMessage()), 2, $order->id);
 
             return false;
         }
-        GammaWalletOrder::save($order->id, array(
+        GammaWalletOrder::save($order->id, [
             'bill_id' => $bill['billId'],
             'code' => $bill['code'],
             'link' => $bill['link'],
@@ -264,7 +265,7 @@ class GammaWalletRewards
             'bill_status' => $bill['status'],
             'claimed_on' => isset($bill['claimedOn']) ? $bill['claimedOn'] : null,
             'error' => null,
-        ));
+        ]);
 
         return true;
     }
@@ -286,10 +287,10 @@ class GammaWalletRewards
             return (string) $row['bill_status'];
         }
         if ($bill['status'] !== $row['bill_status']) {
-            GammaWalletOrder::save($order->id, array(
+            GammaWalletOrder::save($order->id, [
                 'bill_status' => $bill['status'],
                 'claimed_on' => isset($bill['claimedOn']) ? $bill['claimedOn'] : null,
-            ));
+            ]);
         }
 
         return (string) $bill['status'];
@@ -315,13 +316,13 @@ class GammaWalletRewards
             $idLang,
             'gammawallet_reward',
             sprintf($module->l('Your reward from %1$s (order %2$s)', 'gammawalletorder'), Configuration::get('PS_SHOP_NAME'), $order->reference),
-            array(
+            [
                 '{firstname}' => $customer->firstname,
                 '{lastname}' => $customer->lastname,
                 '{order_name}' => $order->reference,
                 '{gamma_qr_url}' => $row['qr_url'],
                 '{gamma_link}' => $row['link'],
-            ),
+            ],
             $customer->email,
             trim($customer->firstname . ' ' . $customer->lastname),
             null,
@@ -333,7 +334,7 @@ class GammaWalletRewards
             (int) $order->id_shop
         );
         if ($sent) {
-            GammaWalletOrder::save($order->id, array('emailed' => time()));
+            GammaWalletOrder::save($order->id, ['emailed' => time()]);
         }
 
         return (bool) $sent;
@@ -371,7 +372,7 @@ class GammaWalletRewards
 class GammaWalletCredits
 {
     /** How long after a code was shown the shop keeps asking Gamma whether it was settled. */
-    const RECONCILE_HOURS = 6;
+    public const RECONCILE_HOURS = 6;
 
     /**
      * Asks Gamma for a new store-credit request for the whole order, and keeps it. Returns null when
@@ -389,22 +390,22 @@ class GammaWalletCredits
         }
         $currency = new Currency((int) $order->id_currency);
         try {
-            $request = $api->startCredit(array(
+            $request = $api->startCredit([
                 'reference' => GammaWalletRewards::reference($order),
                 'total' => (float) Tools::ps_round((float) $order->total_paid, 2),
                 'currencyCode' => $currency->iso_code,
-            ));
+            ]);
         } catch (GammaWalletApiError $e) {
             GammaWalletOrder::releaseCodeSlot($order->id, $previous);
             throw $e;
         }
-        GammaWalletOrder::save($order->id, array(
+        GammaWalletOrder::save($order->id, [
             'credit_request' => $request['creditRequest'],
             'credit_request_id' => $request['requestId'],
             'credit_expires_on' => $request['expiresOn'],
             'credit_link' => $request['link'],
             'credit_qr' => isset($request['qrPngBase64']) ? $request['qrPngBase64'] : '',
-        ));
+        ]);
 
         return $request;
     }
@@ -426,7 +427,7 @@ class GammaWalletCredits
     private static function matches(Order $order, array $checked)
     {
         if (isset($checked['reference']) && !in_array((string) $checked['reference'],
-            array(GammaWalletRewards::reference($order), GammaWalletRewards::legacyReference($order)), true)) {
+            [GammaWalletRewards::reference($order), GammaWalletRewards::legacyReference($order)], true)) {
             return false;
         }
         $currency = new Currency((int) $order->id_currency);
@@ -479,21 +480,21 @@ class GammaWalletCredits
     public static function status(Order $order)
     {
         if (self::isSettled($order)) {
-            return array('status' => 'Paid');
+            return ['status' => 'Paid'];
         }
         $row = GammaWalletOrder::get($order->id);
         $api = GammaWalletApi::fromSettings();
         if (!$row['credit_request'] || !$api) {
-            return array('status' => 'Expired');
+            return ['status' => 'Expired'];
         }
         $checked = $api->checkCredit($row['credit_request']);
         if ('Paid' === $checked['status']) {
             self::markSettled($order, $checked);
 
-            return array('status' => 'Paid');
+            return ['status' => 'Paid'];
         }
 
-        return array('status' => $checked['status'], 'secondsLeft' => (int) $checked['secondsLeft']);
+        return ['status' => $checked['status'], 'secondsLeft' => (int) $checked['secondsLeft']];
     }
 
     /**

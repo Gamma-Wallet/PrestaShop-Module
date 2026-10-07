@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Gamma Wallet for PrestaShop
  *
@@ -13,7 +14,7 @@
  * @copyright Since 2026 Gamma Wallet
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0 (AFL-3.0)
  */
-/**
+/*
  * Gamma Wallet for PrestaShop 1.1.0: orders placed before the upgrade never earn a new reward, the
  * cron task gets its secret, and the back office checks waiting store-credit orders.
  */

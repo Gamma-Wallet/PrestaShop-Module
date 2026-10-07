@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Gamma Wallet for PrestaShop
  *
@@ -13,7 +14,7 @@
  * @copyright Since 2026 Gamma Wallet
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0 (AFL-3.0)
  */
-/**
+/*
  * Gamma Wallet for PrestaShop — the calls to the Gamma Integration API.
  *
  * Every call carries the shop's integration token (GWINT_…) and runs on the shop's server, never in
@@ -64,7 +65,7 @@ class GammaWalletApiError extends Exception
 class GammaWalletApi
 {
     /** Can be overridden in config/defines.inc.php for testing: define('GAMMAWALLET_API_URL', 'https://…'); */
-    const DEFAULT_URL = 'https://integration.gamma-wallet.com';
+    public const DEFAULT_URL = 'https://integration.gamma-wallet.com';
 
     /** @var string */
     private $token;
@@ -113,16 +114,16 @@ class GammaWalletApi
     /** Waiting, Paid or Expired, with the seconds left. */
     public function checkCredit($creditRequest)
     {
-        return $this->send('POST', '/api/Credit/Check', array('creditRequest' => $creditRequest));
+        return $this->send('POST', '/api/Credit/Check', ['creditRequest' => $creditRequest]);
     }
 
     private function send($method, $path, $body = null, $timeout = 20)
     {
-        $headers = array(
+        $headers = [
             'Authorization: Bearer ' . $this->token,
             'Accept: application/json',
             'User-Agent: gamma-wallet-prestashop/' . GammaWallet::VERSION . '; ' . Tools::getShopDomainSsl(true),
-        );
+        ];
         $curl = curl_init(self::baseUrl() . $path);
         curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $method);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -147,12 +148,8 @@ class GammaWalletApi
         if ($status >= 200 && $status < 300 && is_array($envelope) && isset($envelope['result']) && is_array($envelope['result'])) {
             return $envelope['result'];
         }
-        $error = (is_array($envelope) && isset($envelope['error']) && is_array($envelope['error'])) ? $envelope['error'] : array();
-        throw new GammaWalletApiError(
-            $status,
-            isset($error['identifier']) ? $error['identifier'] : null,
-            isset($error['message']) ? $error['message'] : null
-        );
+        $error = (is_array($envelope) && isset($envelope['error']) && is_array($envelope['error'])) ? $envelope['error'] : [];
+        throw new GammaWalletApiError($status, isset($error['identifier']) ? $error['identifier'] : null, isset($error['message']) ? $error['message'] : null);
     }
 
     /**

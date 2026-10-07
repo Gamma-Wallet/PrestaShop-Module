@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Gamma Wallet for PrestaShop
  *
@@ -13,7 +14,7 @@
  * @copyright Since 2026 Gamma Wallet
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0 (AFL-3.0)
  */
-/**
+/*
  * Gamma Wallet for PrestaShop — the customer chose "Use Store Credits with Gamma" and placed the
  * order. The order is created waiting for the credits, Gamma is asked for a QR code, and the
  * customer goes to the order confirmation page, which shows it.
@@ -30,7 +31,7 @@ class GammaWalletValidationModuleFrontController extends ModuleFrontController
     public function postProcess()
     {
         $cart = $this->context->cart;
-        $restart = $this->context->link->getPageLink('order', true, null, array('step' => 1));
+        $restart = $this->context->link->getPageLink('order', true, null, ['step' => 1]);
         // The checkout posts the payment form; a plain link (or a link from another site) places nothing.
         if ('POST' !== Tools::strtoupper((string) filter_input(INPUT_SERVER, 'REQUEST_METHOD'))) {
             Tools::redirect($restart);
@@ -62,7 +63,7 @@ class GammaWalletValidationModuleFrontController extends ModuleFrontController
             $total,
             $this->module->l('Gamma Wallet store credits', 'validation'),
             null,
-            array(),
+            [],
             (int) $this->context->currency->id,
             false,
             $customer->secure_key
@@ -75,11 +76,11 @@ class GammaWalletValidationModuleFrontController extends ModuleFrontController
             GammaWalletApi::log(sprintf('Store-credit request for order %s failed: %s', $order->reference, $e->getMessage()), 2, $order->id);
         }
 
-        Tools::redirect($this->context->link->getPageLink('order-confirmation', true, null, array(
+        Tools::redirect($this->context->link->getPageLink('order-confirmation', true, null, [
             'id_cart' => (int) $cart->id,
             'id_module' => (int) $this->module->id,
             'id_order' => (int) $order->id,
             'key' => $customer->secure_key,
-        )));
+        ]));
     }
 }
