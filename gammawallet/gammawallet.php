@@ -1,12 +1,25 @@
 <?php
 /**
+ * Gamma Wallet for PrestaShop
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the Academic Free License version 3.0
+ * that is bundled with this package in the file LICENSE.md.
+ * It is also available through the world-wide-web at this URL:
+ * https://opensource.org/licenses/AFL-3.0
+ *
+ * @author    Gamma Wallet <developer@gamma-wallet.com>
+ * @copyright Since 2026 Gamma Wallet
+ * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0 (AFL-3.0)
+ */
+/**
  * Gamma Wallet for PrestaShop.
  *
  * Customers earn a reward for every paid order and can settle an order with the store credits they
  * hold at the shop, by scanning a QR code with the Gamma Wallet app. Credits are a promise of value
  * at the business — not money — and Gamma never handles a payment.
  *
- * @license GPL-2.0-or-later
  */
 
 if (!defined('_PS_VERSION_')) {
@@ -21,10 +34,11 @@ require_once __DIR__ . '/classes/GammaWalletOrder.php';
 
 class GammaWallet extends PaymentModule
 {
-    const VERSION = '1.0.0';
+    const VERSION = '1.1.0';
 
-    /** Order-email placeholder the module adds to order_conf and fills with the reward QR code. */
+    /** Order-email placeholders the module adds to order_conf: the QR code (HTML part) and a link (text part). */
     const EMAIL_PLACEHOLDER = '{gamma_wallet_reward}';
+    const EMAIL_PLACEHOLDER_TXT = '{gamma_wallet_reward_txt}';
 
     const HOOKS = array(
         'paymentOptions',
@@ -36,6 +50,7 @@ class GammaWallet extends PaymentModule
         'actionEmailAddAfterContent',
         'sendMailAlterTemplateVars',
         'displayAdminOrderSide',
+        'displayBackOfficeHeader',
     );
 
     public function __construct()
@@ -45,7 +60,8 @@ class GammaWallet extends PaymentModule
         $this->version = self::VERSION;
         $this->author = 'Gamma Wallet';
         $this->need_instance = 0;
-        $this->ps_versions_compliancy = array('min' => '8.0.0', 'max' => _PS_VERSION_);
+        // Tested on PrestaShop 8; version 9 is not tested yet.
+        $this->ps_versions_compliancy = array('min' => '8.0.0', 'max' => '8.99.99');
         $this->bootstrap = true;
         $this->currencies = true;
         $this->currencies_mode = 'checkbox';
@@ -67,7 +83,21 @@ class GammaWallet extends PaymentModule
             && Configuration::updateValue(GammaWalletSettings::REWARDS, 1)
             && Configuration::updateValue(GammaWalletSettings::REWARD_EMAIL, 1)
             && Configuration::updateValue(GammaWalletSettings::CREDITS, 1)
-            && Configuration::updateValue(GammaWalletSettings::NO_REWARD_MODULES, json_encode(GammaWalletSettings::PAY_LATER_MODULES));
+            && Configuration::updateValue(GammaWalletSettings::NO_REWARD_MODULES, json_encode(GammaWalletSettings::PAY_LATER_MODULES))
+            && self::recordInstall();
+    }
+
+    /** The install date (orders before it earn no reward) and the cron task's secret. Also run on upgrade. */
+    public static function recordInstall()
+    {
+        if (!(int) Configuration::get(GammaWalletSettings::INSTALLED_ON)) {
+            Configuration::updateValue(GammaWalletSettings::INSTALLED_ON, time());
+        }
+        if ('' === (string) Configuration::get(GammaWalletSettings::CRON_TOKEN)) {
+            Configuration::updateValue(GammaWalletSettings::CRON_TOKEN, bin2hex(random_bytes(16)));
+        }
+
+        return true;
     }
 
     public function uninstall()
@@ -75,6 +105,7 @@ class GammaWallet extends PaymentModule
         foreach (array(
             GammaWalletSettings::TOKEN, GammaWalletSettings::REWARDS, GammaWalletSettings::NO_REWARD_MODULES,
             GammaWalletSettings::REWARD_EMAIL, GammaWalletSettings::CREDITS, GammaWalletSettings::CONNECTION,
+            GammaWalletSettings::INSTALLED_ON, GammaWalletSettings::CRON_TOKEN, GammaWalletSettings::RECONCILED_AT,
         ) as $key) {
             Configuration::deleteByName($key);
         }
@@ -109,7 +140,11 @@ class GammaWallet extends PaymentModule
         if (!$state->add()) {
             return false;
         }
-        @copy(__DIR__ . '/logo.png', _PS_ORDER_STATE_IMG_DIR_ . (int) $state->id . '.gif');
+        // The state's icon in the order list. Not having it is only cosmetic.
+        $icon = _PS_ORDER_STATE_IMG_DIR_ . (int) $state->id . '.gif';
+        if (is_writable(_PS_ORDER_STATE_IMG_DIR_) && !copy(__DIR__ . '/views/img/order-state.gif', $icon)) {
+            GammaWalletApi::log('The icon of the "Awaiting Gamma store credits" order state could not be copied.', 1);
+        }
 
         return Configuration::updateValue(GammaWalletSettings::OS_AWAITING, (int) $state->id);
     }
@@ -124,7 +159,8 @@ class GammaWallet extends PaymentModule
         }
         $cart = $params['cart'];
         $currency = new Currency((int) $cart->id_currency);
-        if (!GammaWalletSettings::currencyMatches($currency->iso_code) || (float) $cart->getOrderTotal(true, Cart::BOTH) <= 0) {
+        if (!GammaWalletSettings::currencyMatches($currency->iso_code) || (float) $cart->getOrderTotal(true, Cart::BOTH) <= 0
+            || self::cartSplits($cart)) {
             return array();
         }
         $option = new PaymentOption();
@@ -135,6 +171,23 @@ class GammaWallet extends PaymentModule
             ->setAdditionalInformation($this->fetch('module:gammawallet/views/templates/hook/payment_option.tpl'));
 
         return array($option);
+    }
+
+    /**
+     * True when the cart becomes several orders (several carriers or delivery addresses): store
+     * credits settle one whole order, so they are not offered then.
+     */
+    public static function cartSplits(Cart $cart)
+    {
+        if ($cart->isMultiAddressDelivery()) {
+            return true;
+        }
+        $packages = 0;
+        foreach ((array) $cart->getPackageList() as $addressPackages) {
+            $packages += count((array) $addressPackages);
+        }
+
+        return $packages > 1;
     }
 
     /** The order confirmation page of an order placed with store credits: the QR code until settled. */
@@ -169,7 +222,13 @@ class GammaWallet extends PaymentModule
             return '';
         }
         if ($order->module === $this->name) {
-            return GammaWalletCredits::isSettled($order) ? $this->note($this->l('This order is settled with your store credits through Gamma Wallet.')) : $this->creditBox($order);
+            if (GammaWalletCredits::isSettled($order)) {
+                return $this->note($this->l('This order is settled with your store credits through Gamma Wallet.'));
+            }
+
+            return GammaWalletCredits::isAwaiting($order)
+                ? $this->creditBox($order)
+                : $this->note($this->l('This order is no longer waiting for store credits.'));
         }
 
         return $this->rewardSection($order, true);
@@ -186,21 +245,16 @@ class GammaWallet extends PaymentModule
         if (!Validate::isLoadedObject($order) || $order->module === $this->name) {
             return;
         }
-        if (GammaWalletRewards::ensureBill($order)) {
+        if (GammaWalletRewards::ensureBill($order, 10)) {
             GammaWalletRewards::emailPayLaterOnce($order);
         }
     }
 
     private function rewardSection(Order $order, $poll)
     {
-        if (GammaWalletRewards::ensureBill($order)) {
-            $row = GammaWalletOrder::get($order->id);
-            if ($poll && 'Claimed' !== $row['bill_status']) {
-                GammaWalletRewards::refreshStatus($order);
-                $row = GammaWalletOrder::get($order->id);
-            }
-
-            return $this->rewardBox($order, $row, $poll);
+        // Short wait: the page is being built. Whether it was collected is asked by the page script.
+        if (GammaWalletRewards::ensureBill($order, 5)) {
+            return $this->rewardBox($order, GammaWalletOrder::get($order->id), $poll);
         }
         if (!GammaWalletRewards::mayEarn($order) || $order->hasBeenPaid()) {
             return '';
@@ -223,7 +277,7 @@ class GammaWallet extends PaymentModule
         if (!$count) {
             $params['template_html'] .= self::EMAIL_PLACEHOLDER;
         }
-        $params['template_txt'] .= "\n" . self::EMAIL_PLACEHOLDER;
+        $params['template_txt'] .= "\n" . self::EMAIL_PLACEHOLDER_TXT;
     }
 
     /** Fills the placeholder: the reward QR code for an order paid at checkout, otherwise nothing. */
@@ -233,18 +287,20 @@ class GammaWallet extends PaymentModule
             return;
         }
         $params['template_vars'][self::EMAIL_PLACEHOLDER] = '';
+        $params['template_vars'][self::EMAIL_PLACEHOLDER_TXT] = '';
         $idOrder = isset($params['template_vars']['{id_order}']) ? (int) $params['template_vars']['{id_order}'] : 0;
         if (!$this->active || !$idOrder || !GammaWalletSettings::rewardInEmail()) {
             return;
         }
         $order = new Order($idOrder);
         // A pay-later order gets its own reward email once paid; this one was written before that.
-        if (!Validate::isLoadedObject($order) || GammaWalletSettings::isPayLater($order->module) || !GammaWalletRewards::ensureBill($order)) {
+        if (!Validate::isLoadedObject($order) || GammaWalletSettings::isPayLater($order->module) || !GammaWalletRewards::ensureBill($order, 10)) {
             return;
         }
         $row = GammaWalletOrder::get($order->id);
         $this->context->smarty->assign(array('gw_qr' => $row['qr_url'], 'gw_link' => $row['link']));
         $params['template_vars'][self::EMAIL_PLACEHOLDER] = $this->fetch('module:gammawallet/views/templates/hook/email_reward.tpl');
+        $params['template_vars'][self::EMAIL_PLACEHOLDER_TXT] = $this->l('Collect your reward with Gamma Wallet: open this link on your phone:') . "\n" . $row['link'];
     }
 
     // ------------------------------------------------------------------ the customer's pages
@@ -327,6 +383,16 @@ class GammaWallet extends PaymentModule
         $lines = array();
         $canResend = false;
         if ($order->module === $this->name) {
+            if (!GammaWalletCredits::isSettled($order) && $row['credit_request'] && GammaWalletCredits::isAwaiting($order)) {
+                // The customer may have confirmed in the app after leaving the page: ask Gamma now.
+                try {
+                    GammaWalletCredits::status($order);
+                    $order = new Order((int) $order->id);
+                    $row = GammaWalletOrder::get($order->id);
+                } catch (GammaWalletApiError $e) {
+                    GammaWalletApi::log(sprintf('Checking order %s failed: %s', $order->reference, $e->getMessage()), 2, $order->id);
+                }
+            }
             $lines[] = GammaWalletCredits::isSettled($order)
                 ? $this->l('Settled with store credits through Gamma Wallet.')
                 : $this->l('Waiting for the customer to settle it with store credits.');
@@ -334,10 +400,10 @@ class GammaWallet extends PaymentModule
                 $lines[] = $this->l('Request') . ': ' . $row['credit_request_id'];
             }
             $lines[] = $this->l('No reward is given for an order settled with store credits.');
-        } elseif ($row['bill_id'] || GammaWalletRewards::ensureBill($order)) {
+        } elseif ($row['bill_id'] || GammaWalletRewards::ensureBill($order, 5)) {
             $row = GammaWalletOrder::get($order->id);
             if ('Claimed' !== $row['bill_status']) {
-                GammaWalletRewards::refreshStatus($order);
+                GammaWalletRewards::refreshStatus($order, 5);
                 $row = GammaWalletOrder::get($order->id);
             }
             $lines[] = 'Claimed' === $row['bill_status'] ? $this->l('Reward collected') : $this->l('Waiting for the customer to collect the reward');
@@ -372,6 +438,23 @@ class GammaWallet extends PaymentModule
         return $this->fetch('module:gammawallet/views/templates/admin/order_side.tpl');
     }
 
+    /**
+     * While someone uses the back office, waiting store-credit orders are checked with Gamma at most
+     * every 2 minutes, so an order paid after the customer left the page is settled even without the
+     * cron task.
+     */
+    public function hookDisplayBackOfficeHeader()
+    {
+        if (!$this->active || '' === GammaWalletSettings::token()
+            || (int) Configuration::get(GammaWalletSettings::RECONCILED_AT) > time() - 120) {
+            return '';
+        }
+        Configuration::updateValue(GammaWalletSettings::RECONCILED_AT, time());
+        GammaWalletCredits::reconcile(5);
+
+        return '';
+    }
+
     // ------------------------------------------------------------------ settings page
 
     public function getContent()
@@ -380,6 +463,11 @@ class GammaWallet extends PaymentModule
         $idResend = (int) Tools::getValue('gw_resend');
         if ($idResend) {
             $order = new Order($idResend);
+            // A click is a deliberate new try, also after the automatic ones ran out.
+            $resendRow = GammaWalletOrder::get($idResend);
+            if (!$resendRow['bill_id']) {
+                GammaWalletOrder::save($idResend, array('attempts' => 0));
+            }
             $sent = Validate::isLoadedObject($order) && GammaWalletRewards::sendRewardEmail($order);
             $orderUrl = $this->context->link->getAdminLink('AdminOrders', true, array('route' => 'admin_orders_view', 'orderId' => $idResend));
             $this->context->cookie->__set('gw_flash', $sent ? 'sent' : 'failed');
@@ -439,6 +527,7 @@ class GammaWallet extends PaymentModule
             'gw_credits' => GammaWalletSettings::creditsEnabled(),
             'gw_methods' => $methods,
             'gw_logo' => $this->_path . 'views/img/gamma-logo.png',
+            'gw_cron_url' => GammaWalletSettings::cronUrl(),
         ));
 
         return $messages . $this->display(__FILE__, 'views/templates/admin/configure.tpl');

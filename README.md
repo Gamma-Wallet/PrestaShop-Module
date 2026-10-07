@@ -32,7 +32,7 @@ This guide is for shop owners. No coding is needed. If you want to connect your 
 | | |
 |---|---|
 | A Gamma Business account with a **Reward** service active | [Register](https://business.gamma-wallet.com) and start on the free tier, then activate a Reward service. The module works only with a Reward service: while another kind of service is active (a membership or a discount card, for example), customers get no reward QR code and store credits are not offered at checkout. |
-| PrestaShop | Version 8.0 or newer. Tested with PrestaShop 8.2 and its standard *Classic* theme. |
+| PrestaShop | Version 8 (8.0 to 8.2). Tested with PrestaShop 8.2 and its standard *Classic* theme. PrestaShop 9 is not tested yet. |
 | PHP | Version 7.2 or newer, as PrestaShop 8 itself requires. Your hosting provider can tell you which version you have. |
 | The same currency | Your shop must sell in the same currency as your Gamma business (for example EUR in both). |
 
@@ -43,6 +43,10 @@ This guide is for shop owners. No coding is needed. If you want to connect your 
 3. Drop the zip file in the window. PrestaShop installs the module and offers to configure it.
 
 You find it again later in **Modules → Module Manager**, under the name **Gamma Wallet**, with a **Configure** button.
+
+Only orders placed **after** the module is installed earn rewards; older orders never do.
+
+**Updating to a new version:** upload the new zip the same way. PrestaShop sees the newer version and offers **Upgrade**.
 
 ## 3. Create your integration token in Gamma Business
 
@@ -99,6 +103,9 @@ Good to know:
 - The option is shown only when your shop is connected, your business has a Reward service active, the currency matches and the order total is above zero.
 - An order settled with store credits doesn't earn a new reward.
 - Like every payment module, it follows PrestaShop's **Payment → Preferences**: if you limit payment modules by currency, country, customer group or carrier there, include Gamma Wallet where you want it offered.
+- It is not offered for a cart that PrestaShop would split into several orders (several carriers or delivery addresses), because store credits settle one whole order.
+- If the customer confirms in the app and closes the page straight away, the order is still settled: the module checks waiting orders with Gamma while you use the back office, and when you open the order. For it to happen every few minutes in any case, copy the **Cron task** address from the settings page into the *Cron tasks manager* module or your server's crontab.
+- If an order is paid with credits after it was cancelled, it is not changed: you find a private note on the order, because the customer has used their credits.
 
 ## 7. What your customers see
 
@@ -157,7 +164,9 @@ Do both steps together. **The old token stops working the moment you create the 
 No. Customers pay you exactly as before, through the payment methods you already use. Gamma only records the reward contract for the order. A customer who uses store credits is using value you promised earlier, not paying Gamma.
 
 **What does the module send to Gamma?**
-For each order that earns a reward or uses store credits: the order reference, the total, the currency and the order date. No names, addresses, email addresses or products.
+Every request carries your integration token, the module version and your shop's web address. For each order that earns a reward or uses store credits: an order reference (such as *PS-3f9a1c-XKBKNABJK*: your order reference with a short tag for your shop), the total, the currency, the order date, and the name of the platform (PrestaShop). About once an hour it checks the connection. No names, addresses, email addresses or products.
+
+The reward QR code image on the order pages, in the order emails and on the back-office order page is loaded from `integration.gamma-wallet.com`, so the customer's browser or email app contacts that server when it shows it. Mention this in your shop's privacy policy.
 
 **My customer doesn't have the Gamma Wallet app yet.**
 They install the free Gamma Wallet app, sign up, and scan the code from the confirmation page or the email.
@@ -182,8 +191,9 @@ Disabling it stops new rewards and hides the store credits option. Rewards alrea
 | *… works only with a Reward service* | Your active service in Gamma is not a Reward service. Activate a Reward service in Gamma Business. The module checks again every hour; click **Check again** on the settings page to see the change at once. |
 | *Your shop sells in … but your Gamma business uses …* | Your shop's default currency (*International → Localization*) must be the same as your Gamma business currency. |
 | *Use Store Credits with Gamma* is missing at checkout | Check that it is turned on in the settings, that **Status** shows *Connected* with no red line about the Reward service, that the currencies match, that the total is above zero, and that *Payment → Preferences* allows Gamma Wallet for that currency, country, customer group and carrier. |
-| An order has no reward | Check that your business has a Reward service active, that the payment method is ticked, that **Rewards** is on, and that the order is in a paid status. The order's Gamma Wallet box gives the reason. |
-| An error in the order's Gamma Wallet box | The module tries again whenever the order is opened, a few times. If the box still shows an error, fix the cause it names (usually the token), then click **Send the reward QR code to the customer**: this creates the reward and emails it. |
+| An order has no reward | Check that your business has a Reward service active, that the payment method is ticked, that **Rewards** is on, that the order is in a paid status, and that it was placed after the module was installed. The order's Gamma Wallet box gives the reason. |
+| An error in the order's Gamma Wallet box | The module tries again whenever the order is opened, a few times. If the box still shows an error, fix the cause it names (usually the token), then click **Send the reward QR code to the customer**: this creates the reward and emails it, also after the automatic tries have run out. |
+| An order paid with store credits still waits | Open it in the back office: the Gamma Wallet box asks Gamma at once. Setting up the **Cron task** from the settings page makes this happen on its own. |
 | *Gamma could not be reached* | Your hosting must allow outgoing connections to `https://integration.gamma-wallet.com`. Ask your hosting provider if this message stays. |
 | *Too many requests to Gamma* | Wait a minute and try again. |
 | The reward email didn't arrive | Ask the customer to check their spam folder, then send it again from the order page. If none of your shop's emails arrive, the problem is your shop's email settings (*Advanced Parameters → E-mail*), not the module. |
@@ -194,4 +204,4 @@ Still stuck? Contact us through [gamma-wallet.com](https://www.gamma-wallet.com)
 
 ---
 
-The module's source code is in [gammawallet](gammawallet). It is released under the GPL-2.0-or-later licence.
+The module's source code is in [gammawallet](gammawallet). It is released under the Academic Free License 3.0 (AFL-3.0), PrestaShop's usual licence for modules; see [gammawallet/LICENSE.md](gammawallet/LICENSE.md).

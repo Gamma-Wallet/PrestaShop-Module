@@ -1,5 +1,19 @@
 <?php
 /**
+ * Gamma Wallet for PrestaShop
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the Academic Free License version 3.0
+ * that is bundled with this package in the file LICENSE.md.
+ * It is also available through the world-wide-web at this URL:
+ * https://opensource.org/licenses/AFL-3.0
+ *
+ * @author    Gamma Wallet <developer@gamma-wallet.com>
+ * @copyright Since 2026 Gamma Wallet
+ * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0 (AFL-3.0)
+ */
+/**
  * Gamma Wallet for PrestaShop — the calls to the Gamma Integration API.
  *
  * Every call carries the shop's integration token (GWINT_…) and runs on the shop's server, never in
@@ -80,14 +94,14 @@ class GammaWalletApi
     }
 
     /** Declares a paid order. Safe to repeat with the same reference: Gamma returns the same bill. */
-    public function createBill(array $bill)
+    public function createBill(array $bill, $timeout = 20)
     {
-        return $this->send('POST', '/api/Bill/Create', $bill);
+        return $this->send('POST', '/api/Bill/Create', $bill, $timeout);
     }
 
-    public function getBill($billId)
+    public function getBill($billId, $timeout = 20)
     {
-        return $this->send('GET', '/api/Bill/Get/' . rawurlencode($billId));
+        return $this->send('GET', '/api/Bill/Get/' . rawurlencode($billId), null, $timeout);
     }
 
     /** A new store-credit request for the whole order. */

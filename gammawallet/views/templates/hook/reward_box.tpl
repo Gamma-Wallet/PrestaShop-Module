@@ -1,3 +1,17 @@
+{**
+ * Gamma Wallet for PrestaShop
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the Academic Free License version 3.0
+ * that is bundled with this package in the file LICENSE.md.
+ * It is also available through the world-wide-web at this URL:
+ * https://opensource.org/licenses/AFL-3.0
+ *
+ * @author    Gamma Wallet <developer@gamma-wallet.com>
+ * @copyright Since 2026 Gamma Wallet
+ * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0 (AFL-3.0)
+ *}
 {* The reward QR code. Asks this shop (never Gamma) every 5 seconds until the reward is collected. *}
 <section class="gamma-wallet-box" data-kind="reward" data-status-url="{$gw_status_url|escape:'html':'UTF-8'}" data-poll="{if $gw_poll}1{else}0{/if}">
   <div class="gw-card{if $gw_claimed} gw-is-done{/if}">

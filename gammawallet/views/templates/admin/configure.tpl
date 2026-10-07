@@ -1,3 +1,17 @@
+{**
+ * Gamma Wallet for PrestaShop
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the Academic Free License version 3.0
+ * that is bundled with this package in the file LICENSE.md.
+ * It is also available through the world-wide-web at this URL:
+ * https://opensource.org/licenses/AFL-3.0
+ *
+ * @author    Gamma Wallet <developer@gamma-wallet.com>
+ * @copyright Since 2026 Gamma Wallet
+ * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0 (AFL-3.0)
+ *}
 {* Gamma Wallet settings: connection, rewards, store credits. *}
 <form method="post" action="{$gw_action|escape:'html':'UTF-8'}" class="form-horizontal" autocomplete="off">
   <div class="panel">
@@ -83,6 +97,13 @@
       <div class="col-lg-6" style="padding-top:7px">
         <label><input type="checkbox" name="gw_credits" value="1"{if $gw_credits} checked{/if}> {l s='Offer it as a payment option at checkout' mod='gammawallet'}</label>
         <p class="help-block">{l s='At checkout, the customer scans a QR code with Gamma Wallet and the whole order is settled from their store credits. The code is valid for 60 seconds. An order settled this way earns no reward.' mod='gammawallet'}</p>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="control-label col-lg-3">{l s='Cron task' mod='gammawallet'}</label>
+      <div class="col-lg-6" style="padding-top:7px">
+        <input type="text" class="form-control" readonly value="{$gw_cron_url|escape:'html':'UTF-8'}" onclick="this.select()">
+        <p class="help-block">{l s='A customer who confirms in the app and closes the page at once is still settled: the module checks waiting orders while you use the back office. To have it done every few minutes in any case, add this address to the "Cron tasks manager" module or to your server\'s crontab. Keep it private.' mod='gammawallet'}</p>
       </div>
     </div>
 

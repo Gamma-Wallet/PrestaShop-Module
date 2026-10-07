@@ -1,5 +1,19 @@
 <?php
 /**
+ * Gamma Wallet for PrestaShop
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the Academic Free License version 3.0
+ * that is bundled with this package in the file LICENSE.md.
+ * It is also available through the world-wide-web at this URL:
+ * https://opensource.org/licenses/AFL-3.0
+ *
+ * @author    Gamma Wallet <developer@gamma-wallet.com>
+ * @copyright Since 2026 Gamma Wallet
+ * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0 (AFL-3.0)
+ */
+/**
  * Gamma Wallet for PrestaShop — asked every 5 seconds by the customer's page (never Gamma itself):
  * has the reward been collected, has the order been settled with store credits?
  * Protected by the order's secure key, like PrestaShop's own order confirmation page.
@@ -47,18 +61,22 @@ class GammaWalletStatusModuleFrontController extends ModuleFrontController
         $order = self::orderFromRequest();
         if (!$order) {
             self::reply(array('error' => 'not_found'), 404);
+
+            return;
         }
         if ($order->module === $this->module->name) {
             try {
                 $status = GammaWalletCredits::status($order);
             } catch (GammaWalletApiError $e) {
                 self::reply(array('kind' => 'credit', 'status' => 'Unknown'), 503);
+
+                return;
             }
             if ('Paid' === $status['status']) {
                 $status['redirect'] = self::confirmationUrl($this->context, $this->module, $order);
             }
             self::reply(array('kind' => 'credit') + $status);
         }
-        self::reply(array('kind' => 'reward', 'status' => GammaWalletRewards::refreshStatus($order)));
+        self::reply(array('kind' => 'reward', 'status' => GammaWalletRewards::refreshStatus($order, 10)));
     }
 }

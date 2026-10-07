@@ -1,4 +1,5 @@
-{**
+<?php
+/**
  * Gamma Wallet for PrestaShop
  *
  * NOTICE OF LICENSE
@@ -11,5 +12,19 @@
  * @author    Gamma Wallet <developer@gamma-wallet.com>
  * @copyright Since 2026 Gamma Wallet
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0 (AFL-3.0)
- *}
-<p class="gamma-wallet-note">{$gw_note|escape:'html':'UTF-8'}</p>
+ */
+/**
+ * Gamma Wallet for PrestaShop 1.1.0: orders placed before the upgrade never earn a new reward, the
+ * cron task gets its secret, and the back office checks waiting store-credit orders.
+ */
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
+function upgrade_module_1_1_0($module)
+{
+    GammaWallet::recordInstall();
+
+    return $module->registerHook('displayBackOfficeHeader');
+}

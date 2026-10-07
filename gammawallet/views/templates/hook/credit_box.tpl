@@ -1,3 +1,17 @@
+{**
+ * Gamma Wallet for PrestaShop
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the Academic Free License version 3.0
+ * that is bundled with this package in the file LICENSE.md.
+ * It is also available through the world-wide-web at this URL:
+ * https://opensource.org/licenses/AFL-3.0
+ *
+ * @author    Gamma Wallet <developer@gamma-wallet.com>
+ * @copyright Since 2026 Gamma Wallet
+ * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0 (AFL-3.0)
+ *}
 {* The store-credit QR code with its countdown, for an order not settled yet. *}
 <section class="gamma-wallet-box gamma-wallet-credit" data-kind="credit" data-status-url="{$gw_status_url|escape:'html':'UTF-8'}" data-new-code-url="{$gw_new_code_url|escape:'html':'UTF-8'}" data-seconds-left="{$gw_seconds|intval}" data-poll="1">
   <div class="gw-card">

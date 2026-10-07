@@ -1,5 +1,19 @@
 <?php
 /**
+ * Gamma Wallet for PrestaShop
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the Academic Free License version 3.0
+ * that is bundled with this package in the file LICENSE.md.
+ * It is also available through the world-wide-web at this URL:
+ * https://opensource.org/licenses/AFL-3.0
+ *
+ * @author    Gamma Wallet <developer@gamma-wallet.com>
+ * @copyright Since 2026 Gamma Wallet
+ * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0 (AFL-3.0)
+ */
+/**
  * Gamma Wallet for PrestaShop — what the shop owner set, and what Gamma said about the connection.
  */
 
@@ -16,6 +30,12 @@ class GammaWalletSettings
     const CREDITS = 'GAMMAWALLET_CREDITS';
     const CONNECTION = 'GAMMAWALLET_CONNECTION';
     const OS_AWAITING = 'GAMMAWALLET_OS_AWAITING';
+    /** When the module was installed (Unix time): orders placed before it never earn a reward. */
+    const INSTALLED_ON = 'GAMMAWALLET_INSTALLED_ON';
+    /** The secret in the address of the cron task that settles store-credit orders paid after the page closed. */
+    const CRON_TOKEN = 'GAMMAWALLET_CRON_TOKEN';
+    /** When the back office last checked the waiting store-credit orders. */
+    const RECONCILED_AT = 'GAMMAWALLET_RECONCILED_AT';
 
     /** Paid outside the shop, after the order is placed: cash on delivery, bank transfer, cheque. */
     const PAY_LATER_MODULES = array('ps_cashondelivery', 'ps_wirepayment', 'ps_checkpayment');
@@ -142,33 +162,51 @@ class GammaWalletSettings
         if ('' === self::token()) {
             return false;
         }
+        // Checked again at most once an hour, with a short wait, so a checkout is never held up long.
         self::refreshIfStale(3);
         $connection = self::connection();
 
         return !empty($connection['canClaim']);
     }
 
-    /** A sentence the shop owner can act on. */
+    /** A sentence the shop owner can act on, in the back office language. */
     public static function explain(GammaWalletApiError $e)
     {
+        $module = Module::getInstanceByName('gammawallet');
         switch ($e->identifier) {
             case '0388':
-                return 'Gamma does not recognise this token. Copy it again from Gamma Business → Integrations.';
+                return $module->l('Gamma does not recognise this token. Copy it again from Gamma Business → Integrations.', 'gammawalletsettings');
             case '0389':
-                return 'This token was disabled or replaced. Create a new one in Gamma Business → Integrations.';
+                return $module->l('This token was disabled or replaced. Create a new one in Gamma Business → Integrations.', 'gammawalletsettings');
             case '0390':
-                return 'This token has expired. Create a new one in Gamma Business → Integrations.';
+                return $module->l('This token has expired. Create a new one in Gamma Business → Integrations.', 'gammawalletsettings');
             case '0393':
-                return 'The business this token belongs to is not available in Gamma.';
+                return $module->l('The business this token belongs to is not available in Gamma.', 'gammawalletsettings');
         }
         if (0 === $e->status) {
-            return 'Gamma could not be reached. Check that this server can make outgoing HTTPS connections.';
+            return $module->l('Gamma could not be reached. Check that this server can make outgoing HTTPS connections.', 'gammawalletsettings');
         }
         if (429 === $e->status) {
-            return 'Too many requests to Gamma. Try again in a minute.';
+            return $module->l('Too many requests to Gamma. Try again in a minute.', 'gammawalletsettings');
         }
 
         return $e->getMessage();
+    }
+
+    /**
+     * Six characters fixed for this shop, in every order reference sent to Gamma, so a second shop on
+     * the same Gamma business never reuses one. Derived from the shop's own secret key, so it stays
+     * the same when the module is reinstalled.
+     */
+    public static function shopTag()
+    {
+        return Tools::substr(hash('sha256', 'gammawallet:' . _COOKIE_KEY_), 0, 6);
+    }
+
+    /** The address of the cron task, with its secret. */
+    public static function cronUrl()
+    {
+        return Context::getContext()->link->getModuleLink('gammawallet', 'cron', array('token' => (string) Configuration::get(self::CRON_TOKEN)), true);
     }
 
     /** "GWINT_Ab12Cd3…x9Yz": enough to recognise a token, never enough to use it. */
